@@ -20,6 +20,13 @@ export function useLocation() {
 
         const handleSuccess = (position) => {
             const { latitude, longitude, accuracy, speed, heading } = position.coords;
+
+            // Filter out points with poor accuracy (e.g. > 50 meters)
+            if (accuracy > 50) {
+                // console.log("Ignored weak GPS signal:", accuracy);
+                return;
+            }
+
             setLocation({
                 lat: latitude,
                 lng: longitude,
