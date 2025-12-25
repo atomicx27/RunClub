@@ -51,12 +51,11 @@ export default function GameMap() {
 
     // Shared Mode State
     const [gameMode, setGameMode] = useState('solo'); // 'solo' | 'shared'
-    const [tileStatus, setTileStatus] = useState('Init');
 
     // Use simulated location if in debug mode, otherwise real
     const activeLocation = debugMode ? simulatedLocation : realLocation;
 
-    const { path, claimedTerritories, addDebugPoint, isRecording } = useGameLogic(activeLocation, gameMode);
+    const { path, claimedTerritories, isRecording } = useGameLogic(activeLocation, gameMode);
     const { rivals } = useMultiplayer(user, activeLocation); // Sync location and get rivals
 
     // Default center (e.g. New York) if no location yet
