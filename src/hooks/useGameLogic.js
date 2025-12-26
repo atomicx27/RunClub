@@ -65,17 +65,22 @@ export function useGameLogic(currentLocation, gameMode = 'solo') {
                     const territoriesRef = ref(db, 'territories');
                     push(territoriesRef, newTerritory).catch(err => console.error("Claim Failed:", err));
 
-                    setPath([newPoint]);
+                    // Avoid synchronous setState warning by wrapping in setTimeout
+                    setTimeout(() => {
+                        setPath([newPoint]);
+                    }, 0);
                     lastPointRef.current = newPoint;
                     return;
                 }
             }
         }
 
-        setPath(prev => [...prev, newPoint]);
+        setTimeout(() => {
+            setPath(prev => [...prev, newPoint]);
+        }, 0);
         lastPointRef.current = newPoint;
 
-    }, [currentLocation, isRecording, gameMode, user]);
+    }, [currentLocation, isRecording, gameMode, user, path]);
 
     return {
         path,
