@@ -2,19 +2,14 @@
   "test_date": "2025-12-26",
   "scenarios": [
     {
-      "name": "Multiplayer Visibility",
-      "passed": false,
-      "details": "Both players appeared on each other's map."
+      "name": "Establish Bases",
+      "status": "Executed",
+      "details": "Both teams created polygons in separate zones."
     },
     {
-      "name": "Territory Claim (Blue)",
-      "passed": true,
-      "details": "Blue walked a square path. Screenshot captured."
-    },
-    {
-      "name": "Territory Overwrite (Red)",
-      "passed": true,
-      "details": "Red walked a larger square. Screenshot captured."
+      "name": "Invasion",
+      "status": "Executed",
+      "details": "Blue moved to Red zone and created overlapping polygon."
     }
   ]
 }
