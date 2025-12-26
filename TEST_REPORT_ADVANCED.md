@@ -1,35 +1,49 @@
-# Black Box Test Report - RunClub
+# Advanced Black Box Test Report - Multiplayer Turf War
 
 **Date:** 2025-12-26
-**Tester:** Automated Script (Playwright)
+**Tester:** Automated Script (`simulation_advanced.py`)
 
 ## Summary
-The black box test successfully navigated to the application, completed the onboarding process, and verified the presence of the main game map.
+A complex simulation was executed involving two concurrent users ("BlueLeader" and "RedRogue") on opposing teams. The test simulated real-time GPS movement, territory capture via polygon formation, and rival visibility.
 
 ## Test Environment
 - **URL:** https://localhost:3001
-- **Browser:** Chromium
+- **Browser:** Chromium (2 Contexts)
 - **Framework:** Playwright (Python)
+- **Script:** `simulation_advanced.py`
 
 ## Test Execution Details
 
+### Phase 1: Initialization & Visibility
 | Step | Description | Status | Notes |
 |------|-------------|--------|-------|
-| 1 | Navigate to Application | **Passed** | HTTP 200 OK |
-| 2 | Verify Onboarding Modal | **Passed** | Modal appeared correctly |
-| 3 | Input User Name | **Passed** | Name "TestRunner" entered |
-| 4 | Select Team | **Passed** | Team "RED" selected |
-| 5 | Submit Onboarding | **Passed** | "Enter The Grid" clicked |
-| 6 | Verify Game Map | **Passed** | Leaflet container found |
+| 1 | Blue Login | **Passed** | Successfully entered map. |
+| 2 | Red Login | **Passed** | Successfully entered map. |
+| 3 | Rival Visibility | **FAILED** | `Blue sees Red: False`, `Red sees Blue: False`. Users could not see each other's markers initially. |
 
-## Observations
-- The application redirects new users to the Onboarding screen.
-- Upon successful onboarding, the user is transitioned to the main game view where the map is rendered.
-- No critical errors were encountered during the login flow.
+### Phase 2: Territory Capture (Blue)
+| Step | Description | Status | Notes |
+|------|-------------|--------|-------|
+| 4 | Walk 50m Square | **Passed** | Movement simulated successfully. |
+| 5 | Polygon Generation | **Passed** | Screenshot `sim_blue_claim.png` shows blue polygon. |
+
+### Phase 3: Territory Invasion (Red)
+| Step | Description | Status | Notes |
+|------|-------------|--------|-------|
+| 6 | Walk 70m Square | **Passed** | Movement simulated successfully. |
+| 7 | Polygon Generation | **Passed** | Screenshot `sim_red_invasion.png` shows red polygon overlaying blue. |
+
+## Observations & Bugs
+1.  **Critical Bug - Rival Visibility:** The simulation reported that users could not see each other. This might be due to:
+    *   Firebase sync latency.
+    *   The map not re-rendering markers fast enough.
+    *   Logic in `useMultiplayer.js` filtering improperly.
+2.  **Territory System Works:** The core mechanic of walking in a loop to claim land appears functional.
+3.  **Conflict Resolution:** Currently, new territories just layer on top of old ones. There is no "battle" mechanic other than overwriting the visual layer.
 
 ## Recommendations
-- **Automated Regression:** Integrate this script into the CI/CD pipeline to ensure the onboarding flow remains broken.
-- **Edge Cases:** Add tests for empty inputs (though button disabling was observed in code) and network failures.
+- **Fix Visibility:** Investigate `useMultiplayer.js` to ensure real-time updates are propagating to the client.
+- **Automated Regression:** Integrate `simulation_advanced.py` into the CI pipeline to ensure the "Turf War" mechanics remain working.
 
 ---
 
