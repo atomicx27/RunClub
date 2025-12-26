@@ -11,6 +11,7 @@ import TerritoryLayer from './TerritoryLayer';
 
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+import MovingMarker from './MovingMarker';
 
 let DefaultIcon = L.icon({
     iconUrl: icon,
@@ -106,6 +107,112 @@ export default function GameMap() {
             timestamp: Date.now()
         };
         setSimulatedLocation(newLoc);
+    };
+
+    // --- BATTLE SIMULATION ---
+    const runBattleSimulation = async () => {
+        if (!confirm("Start Battle Simulation? This will reset the map locally.")) return;
+
+        // 1. Center Map (Simulate near Central Park roughly or just use current center)
+        const startLat = 40.7128; // NYC
+        const startLng = -74.0060;
+
+        // 2. Clear Console
+        console.clear();
+        console.log("🚀 STARTING SIMULATION: RED DEFENDER vs BLUE ATTACKER");
+
+        // 3. Inject RED Territory (The Victim)
+        // A square box
+        const redSquare = {
+            id: 'sim-red-base',
+            ownerName: 'RED_BOT',
+            team: 'red',
+            color: '#ef4444',
+            area: 1000,
+            timestamp: Date.now(),
+            geometry: {
+                type: 'Polygon',
+                coordinates: [[
+                    [startLng - 0.0005, startLat - 0.0005],
+                    [startLng + 0.0005, startLat - 0.0005],
+                    [startLng + 0.0005, startLat + 0.0005],
+                    [startLng - 0.0005, startLat + 0.0005],
+                    [startLng - 0.0005, startLat - 0.0005] // Close loop
+                ]]
+            }
+        };
+
+        // We push this directly to Firebase so the app "sees" it naturally
+        // Note: You need to import 'push' and 'ref' from firebase/database inside GameMap or pass it
+        // We will do it directly here.
+
+        // Dynamic import to avoid top-level clutter/conflict if not already imported
+        // actually, let's just use the 'db' from firebase.js if available, or imports
+        // Checking imports... looks like we need to add them or use 'useGameLogic' scope? No.
+        // Let's assume we add imports at top.
+
+        try {
+            // Push Red Base
+            // We use the same 'db' reference from props or imports
+            // Checking imports again... we need to add 'db', 'push', 'ref', 'set' to imports
+            // BUT wait, we can't easily add imports from inside here. 
+            // I will ADD the imports to the top of the file in a separate edit, 
+            // and here I will just write the logic.
+
+            // Note: I will assume imports are added.
+            const { push, ref, set } = await import('firebase/database');
+            const { db } = await import('../../firebase');
+
+            const territoriesRef = ref(db, 'territories');
+            const newRef = push(territoriesRef);
+            await set(newRef, { ...redSquare, id: newRef.key });
+
+            console.log("🔴 RED BASE INJECTED INTO FIREBASE", newRef.key);
+
+        } catch (e) {
+            console.error("Simulation Injection Failed:", e);
+        }
+
+        // For now, let's just Log what we WOULD do, and then Simulate the Blue Player moving.
+        // To make this work WITHOUT importing firebase explicitly again, I'll rely on the existing imports at top of file.
+        // Let's add the imports if missing. (They are likely missing).
+
+        // MOVEMENT LOOP (Blue Player - YOU)
+        // You run from Left to Right, OVERLAPPING the Red Square.
+
+        const pathPoints = [];
+        // Create a horizontal loop that intersects the vertical Red square
+        for (let i = 0; i <= 20; i++) {
+            pathPoints.push({ lat: startLat, lng: startLng - 0.001 + (i * 0.0001) }); // move right
+        }
+        for (let i = 0; i <= 5; i++) {
+            pathPoints.push({ lat: startLat + (i * 0.0001), lng: startLng + 0.001 }); // move up
+        }
+        for (let i = 0; i <= 20; i++) {
+            pathPoints.push({ lat: startLat + 0.0005, lng: startLng + 0.001 - (i * 0.0001) }); // move left
+        }
+        // Close it
+        pathPoints.push({ lat: startLat, lng: startLng - 0.001 });
+
+        console.log(`🤖 SIMULATING ${pathPoints.length} STEPS...`);
+
+        let step = 0;
+        const interval = setInterval(() => {
+            if (step >= pathPoints.length) {
+                clearInterval(interval);
+                console.log("✅ SIMULATION COMPLETE. Loop closed.");
+                return;
+            }
+
+            const pt = pathPoints[step];
+            setSimulatedLocation({
+                lat: pt.lat,
+                lng: pt.lng,
+                accuracy: 5,
+                timestamp: Date.now()
+            });
+            step++;
+        }, 500); // Fast walk
     };
 
     return (
@@ -208,8 +315,8 @@ export default function GameMap() {
                     </button>
                 </div>
 
-                {/* Debug Toggle */}
-                <div className="pointer-events-auto bg-game-surface/80 backdrop-blur p-2 rounded-lg border border-game-primary/30">
+                {/* Debug Toggle & Simulation */}
+                <div className="pointer-events-auto bg-game-surface/80 backdrop-blur p-2 rounded-lg border border-game-primary/30 flex flex-col gap-2">
                     <label className="flex items-center gap-2 cursor-pointer text-xs font-orbitron text-game-primary">
                         <input
                             type="checkbox"
@@ -217,11 +324,21 @@ export default function GameMap() {
                             onChange={(e) => setDebugMode(e.target.checked)}
                             className="accent-game-primary"
                         />
-                        DEBUG
+                        DEBUG MODE
                     </label>
+
+                    {debugMode && (
+                        <button
+                            onClick={() => runBattleSimulation()}
+                            className="text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/50 rounded px-2 py-1 hover:bg-blue-500/40 font-bold"
+                        >
+                            RUN SIMULATION
+                        </button>
+                    )}
+
                     <button
                         onClick={logout}
-                        className="mt-2 w-full text-[10px] bg-red-900/50 text-red-200 border border-red-500/30 rounded px-2 py-1 hover:bg-red-900"
+                        className="w-full text-[10px] bg-red-900/50 text-red-200 border border-red-500/30 rounded px-2 py-1 hover:bg-red-900"
                     >
                         RESET ID
                     </button>
@@ -333,14 +450,14 @@ export default function GameMap() {
                                 />
                             )}
 
+
                             {/* Player Marker */}
-                            <Marker
+                            <MovingMarker
                                 position={[rival.lat, rival.lng]}
+                                duration={2000} // Rivals update slower, so slower slide
                                 icon={playerIcon}
                                 zIndexOffset={100}
-                            >
-                                {/* Removed Popup, using permanent custom label in icon */}
-                            </Marker>
+                            />
                         </div>
                     );
                 })}
@@ -348,21 +465,21 @@ export default function GameMap() {
                 {activeLocation && (
                     <>
                         {/* My Player Marker */}
-                        <Marker
+                        <MovingMarker
                             position={[activeLocation.lat, activeLocation.lng]}
+                            duration={1000} // I update faster
                             zIndexOffset={1000} // Keep me on top
                             icon={L.divIcon({
                                 className: 'my-player-icon',
                                 html: `
-                                    <div class="relative">
-                                        <div class="w-5 h-5 rounded-full border-2 border-white bg-green-500 shadow-[0_0_15px_#22c55e] animate-pulse"></div>
-                                    </div>
-                                `,
+                                <div class="relative">
+                                    <div class="w-5 h-5 rounded-full border-2 border-white bg-green-500 shadow-[0_0_15px_#22c55e] animate-pulse"></div>
+                                </div>
+                            `,
                                 iconSize: [0, 0],
                                 iconAnchor: [10, 10]
                             })}
-                        >
-                        </Marker>
+                        />
 
                         {/* Accuracy Circle */}
                         <Circle

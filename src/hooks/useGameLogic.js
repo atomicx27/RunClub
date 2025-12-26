@@ -69,13 +69,41 @@ export function useGameLogic(currentLocation, gameMode = 'solo', isActive = true
                         const isEnemy = existing.team && user.team && existing.team !== user.team;
                         if (!isEnemy) return;
 
+
+                        // validate geometries
+                        if (!newPolyGeo || !existing.geometry) return;
+
                         try {
+                            // Normalize inputs: We want FEATURES for intersect
+                            const toFeature = (input, label) => {
+                                if (!input) {
+                                    console.error(`${label} is null/undefined`);
+                                    return null;
+                                }
+                                if (input.type === 'Feature') return input;
+                                if (input.type === 'Polygon' || input.type === 'MultiPolygon') {
+                                    return turf.feature(input);
+                                }
+                                console.error(`${label} has unknown type:`, input.type, input);
+                                return null;
+                            };
+
+                            const newFeature = toFeature(newPolyGeo, "NewPoly");
+                            const existingFeature = toFeature(existing.geometry, "ExistingPoly");
+
+                            if (!newFeature || !existingFeature) {
+                                console.warn("Skipping attack check due to invalid feature.");
+                                return;
+                            }
+
                             // Check intersection
-                            const intersectionWithEnemy = turf.intersect(newPolyGeo, existing.geometry);
+                            // Turf v7: intersect takes a FeatureCollection
+                            const intersectionWithEnemy = turf.intersect(turf.featureCollection([newFeature, existingFeature]));
 
                             if (intersectionWithEnemy) {
                                 // Calculate Difference: Enemy - Me
-                                const remaining = turf.difference(existing.geometry, newPolyGeo);
+                                // Turf v7: difference takes a FeatureCollection (First - Others)
+                                const remaining = turf.difference(turf.featureCollection([existingFeature, newFeature]));
 
                                 const territoryRef = ref(db, `territories/${existing.id}`);
 
@@ -87,8 +115,15 @@ export function useGameLogic(currentLocation, gameMode = 'solo', isActive = true
                                     // Partial shrinking
                                     const newArea = turf.area(remaining);
                                     console.log("Shrinking territory:", existing.id);
+
+                                    // IMPORTANT: 'remaining' is a Feature. 
+                                    // We must store the GEOMETRY part if we expect raw geometry later,
+                                    // OR store the whole Feature if that's our convention.
+                                    // Based on 'createPolygonFromPath', we store 'geometry: polygon' which IS a Feature.
+                                    // So we should be consistent.
+
                                     update(territoryRef, {
-                                        geometry: remaining.geometry,
+                                        geometry: remaining.geometry || remaining, // Handle if difference returns Feature or Geometry
                                         area: newArea
                                     });
                                 }
@@ -102,18 +137,19 @@ export function useGameLogic(currentLocation, gameMode = 'solo', isActive = true
                     const newTerritory = {
                         ...poly,
                         ownerType: gameMode,
-                        ownerId: user.id,
-                        ownerName: user.name,
-                        team: user.team || 'neutral',
-                        color: user.team === 'red' ? '#ef4444' : (user.team === 'blue' ? '#3b82f6' : '#10b981'),
+                        ownerId: user.id || 'sim-user',
+                        ownerName: user.name || 'SIMULATED_HACKER',
+                        team: user.team || 'blue', // Default to blue
+                        color: (user.team === 'red') ? '#ef4444' : '#3b82f6',
                         timestamp: Date.now()
                     };
 
                     // PUSH to Firebase
                     const territoriesRef = ref(db, 'territories');
-                    const newRef = push(territoriesRef, newTerritory); // Get ID
+                    // We can't await inside useEffect easily, but push is effectively sync for offline support
+                    const newRef = push(territoriesRef, newTerritory);
 
-                    // Update ID in object just in case
+                    // Update ID
                     update(newRef, { id: newRef.key });
 
                     setPath([newPoint]);

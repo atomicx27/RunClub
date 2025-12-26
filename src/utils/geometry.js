@@ -51,7 +51,7 @@ export function createPolygonFromPath(path, startIndex, intersectPoint) {
         if (area < 10) return null; // Minimum 10 sq meters (lowered for testing)
 
         return {
-            geometry: polygon,
+            geometry: polygon.geometry, // Return raw GEOMETRY, not the Feature wrapper
             area: area,
             id: Date.now()
         };
