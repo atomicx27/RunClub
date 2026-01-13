@@ -1,13 +1,10 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState } from 'react';
 
 const UserContext = createContext();
 
 export function UserProvider({ children }) {
-    const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        // Load from local storage on mount
+    const [user, setUser] = useState(() => {
+        // Load from local storage on initialization
         const savedUser = localStorage.getItem('runclub_user');
         if (savedUser) {
             const parsed = JSON.parse(savedUser);
@@ -16,10 +13,12 @@ export function UserProvider({ children }) {
                 parsed.team = 'blue';
                 parsed.color = '#3b82f6';
             }
-            setUser(parsed);
+            return parsed;
         }
-        setLoading(false);
-    }, []);
+        return null;
+    });
+    // Loading is effectively instant with synchronous localStorage read
+    const loading = false;
 
     const login = (name, team = 'blue') => {
         // Generate a random ID 

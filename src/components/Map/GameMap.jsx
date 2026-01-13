@@ -43,6 +43,7 @@ export default function GameMap() {
     // Shared Mode State
     const [showHelp, setShowHelp] = useState(false);
     const [showAdmin, setShowAdmin] = useState(false);
+    const [gameMode, setGameMode] = useState('solo'); // 'solo' | 'shared'
 
     // Real location only
     const activeLocation = realLocation;
@@ -83,6 +84,8 @@ export default function GameMap() {
             return next;
         });
     }, [rivals]);
+    const { path, claimedTerritories, isRecording } = useGameLogic(activeLocation, gameMode);
+    const { rivals } = useMultiplayer(user, activeLocation); // Sync location and get rivals
 
     // Default center (e.g. New York) if no location yet
     const defaultCenter = [40.7128, -74.0060];

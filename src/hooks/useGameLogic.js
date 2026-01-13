@@ -63,13 +63,34 @@ export function useGameLogic(currentLocation, gameStatus = 'ACTIVE') {
                     handleTerritoryClaim(poly);
                     // Reset path logic
                     setPath([newPoint]);
+                    // Create Territory Object
+                    const newTerritory = {
+                        ...poly,
+                        ownerType: gameMode,
+                        ownerId: user.id,
+                        ownerName: user.name,
+                        team: user.team || 'neutral', // Use user's team
+                        color: user.team === 'red' ? '#ef4444' : (user.team === 'blue' ? '#3b82f6' : '#10b981'),
+                        timestamp: Date.now()
+                    };
+
+                    // PUSH to Firebase (Global State)
+                    const territoriesRef = ref(db, 'territories');
+                    push(territoriesRef, newTerritory).catch(err => console.error("Claim Failed:", err));
+
+                    // Avoid synchronous setState warning by wrapping in setTimeout
+                    setTimeout(() => {
+                        setPath([newPoint]);
+                    }, 0);
                     lastPointRef.current = newPoint;
                     return;
                 }
             }
         }
 
-        setPath(prev => [...prev, newPoint]);
+        setTimeout(() => {
+            setPath(prev => [...prev, newPoint]);
+        }, 0);
         lastPointRef.current = newPoint;
 
     }, [currentLocation, isRecording, gameStatus, user]);
@@ -151,6 +172,7 @@ export function useGameLogic(currentLocation, gameStatus = 'ACTIVE') {
             timestamp: Date.now()
         });
     }
+    }, [currentLocation, isRecording, gameMode, user, path]);
 
     return {
         path,
