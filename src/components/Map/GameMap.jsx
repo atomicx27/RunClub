@@ -8,6 +8,9 @@ import { useUser } from '../../context/UserContext';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
 import { useGameTimer } from '../../hooks/useGameTimer';
 import TerritoryLayer from './TerritoryLayer';
+import HelpModal from '../UI/HelpModal';
+import AdminDashboard from '../UI/AdminDashboard';
+import GameOverlay from '../UI/GameOverlay';
 
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
@@ -33,34 +36,21 @@ function MapRecenter({ location }) {
     return null;
 }
 
-// Component to handle map clicks for debugging
-function DebugMapEvents({ onLocationSelect }) {
-    useMapEvents({
-        click(e) {
-            onLocationSelect(e.latlng);
-        },
-    });
-    return null;
-}
-
 export default function GameMap() {
     const { location: realLocation, error } = useLocation();
     const { user, logout } = useUser();
 
-    // Debug State
-    const [debugMode, setDebugMode] = useState(false);
-    const [simulatedLocation, setSimulatedLocation] = useState(null);
-
     // Shared Mode State
-    const [gameMode, setGameMode] = useState('solo'); // 'solo' | 'shared'
-    // const [tileStatus, setTileStatus] = useState('Init'); // Removed tileStatus
+    const [showHelp, setShowHelp] = useState(false);
+    const [showAdmin, setShowAdmin] = useState(false);
 
-    // Use simulated location if in debug mode, otherwise real
-    const activeLocation = debugMode ? simulatedLocation : realLocation;
-    const { timeLeft, isActive, gameState, adminResetGame } = useGameTimer(); // Added useGameTimer hook
+    // Real location only
+    const activeLocation = realLocation;
+    const { timeLeft, status, gameState } = useGameTimer();
 
-    const { path, claimedTerritories, addDebugPoint, isRecording } = useGameLogic(activeLocation, gameMode, isActive); // Added isActive
-    const { rivals } = useMultiplayer(user, activeLocation); // Sync location and get rivals
+    // Pass status to GameLogic to stop recording if paused/lobby
+    const { path, claimedTerritories, isRecording } = useGameLogic(activeLocation, status);
+    const { rivals } = useMultiplayer(user, activeLocation);
 
     // Trail Logic: Accumulate rival paths
     const [rivalTrails, setRivalTrails] = useState({});
@@ -98,125 +88,14 @@ export default function GameMap() {
     const defaultCenter = [40.7128, -74.0060];
     const center = activeLocation ? [activeLocation.lat, activeLocation.lng] : defaultCenter;
 
-    const handleDebugClick = (latlng) => {
-        if (!debugMode) return;
-        const newLoc = {
-            lat: latlng.lat,
-            lng: latlng.lng,
-            accuracy: 10,
-            timestamp: Date.now()
-        };
-        setSimulatedLocation(newLoc);
-    };
-
-    // --- BATTLE SIMULATION ---
-    const runBattleSimulation = async () => {
-        if (!confirm("Start Battle Simulation? This will reset the map locally.")) return;
-
-        // 1. Center Map (Simulate near Central Park roughly or just use current center)
-        const startLat = 40.7128; // NYC
-        const startLng = -74.0060;
-
-        // 2. Clear Console
-        console.clear();
-        console.log("🚀 STARTING SIMULATION: RED DEFENDER vs BLUE ATTACKER");
-
-        // 3. Inject RED Territory (The Victim)
-        // A square box
-        const redSquare = {
-            id: 'sim-red-base',
-            ownerName: 'RED_BOT',
-            team: 'red',
-            color: '#ef4444',
-            area: 1000,
-            timestamp: Date.now(),
-            geometry: {
-                type: 'Polygon',
-                coordinates: [[
-                    [startLng - 0.0005, startLat - 0.0005],
-                    [startLng + 0.0005, startLat - 0.0005],
-                    [startLng + 0.0005, startLat + 0.0005],
-                    [startLng - 0.0005, startLat + 0.0005],
-                    [startLng - 0.0005, startLat - 0.0005] // Close loop
-                ]]
-            }
-        };
-
-        // We push this directly to Firebase so the app "sees" it naturally
-        // Note: You need to import 'push' and 'ref' from firebase/database inside GameMap or pass it
-        // We will do it directly here.
-
-        // Dynamic import to avoid top-level clutter/conflict if not already imported
-        // actually, let's just use the 'db' from firebase.js if available, or imports
-        // Checking imports... looks like we need to add them or use 'useGameLogic' scope? No.
-        // Let's assume we add imports at top.
-
-        try {
-            // Push Red Base
-            // We use the same 'db' reference from props or imports
-            // Checking imports again... we need to add 'db', 'push', 'ref', 'set' to imports
-            // BUT wait, we can't easily add imports from inside here. 
-            // I will ADD the imports to the top of the file in a separate edit, 
-            // and here I will just write the logic.
-
-            // Note: I will assume imports are added.
-            const { push, ref, set } = await import('firebase/database');
-            const { db } = await import('../../firebase');
-
-            const territoriesRef = ref(db, 'territories');
-            const newRef = push(territoriesRef);
-            await set(newRef, { ...redSquare, id: newRef.key });
-
-            console.log("🔴 RED BASE INJECTED INTO FIREBASE", newRef.key);
-
-        } catch (e) {
-            console.error("Simulation Injection Failed:", e);
-        }
-
-        // For now, let's just Log what we WOULD do, and then Simulate the Blue Player moving.
-        // To make this work WITHOUT importing firebase explicitly again, I'll rely on the existing imports at top of file.
-        // Let's add the imports if missing. (They are likely missing).
-
-        // MOVEMENT LOOP (Blue Player - YOU)
-        // You run from Left to Right, OVERLAPPING the Red Square.
-
-        const pathPoints = [];
-        // Create a horizontal loop that intersects the vertical Red square
-        for (let i = 0; i <= 20; i++) {
-            pathPoints.push({ lat: startLat, lng: startLng - 0.001 + (i * 0.0001) }); // move right
-        }
-        for (let i = 0; i <= 5; i++) {
-            pathPoints.push({ lat: startLat + (i * 0.0001), lng: startLng + 0.001 }); // move up
-        }
-        for (let i = 0; i <= 20; i++) {
-            pathPoints.push({ lat: startLat + 0.0005, lng: startLng + 0.001 - (i * 0.0001) }); // move left
-        }
-        // Close it
-        pathPoints.push({ lat: startLat, lng: startLng - 0.001 });
-
-        console.log(`🤖 SIMULATING ${pathPoints.length} STEPS...`);
-
-        let step = 0;
-        const interval = setInterval(() => {
-            if (step >= pathPoints.length) {
-                clearInterval(interval);
-                console.log("✅ SIMULATION COMPLETE. Loop closed.");
-                return;
-            }
-
-            const pt = pathPoints[step];
-            setSimulatedLocation({
-                lat: pt.lat,
-                lng: pt.lng,
-                accuracy: 5,
-                timestamp: Date.now()
-            });
-            step++;
-        }, 500); // Fast walk
-    };
-
     return (
         <div className="relative w-full h-[100vh] bg-slate-900 text-white overflow-hidden">
+
+            {/* OVERLAYS */}
+            <GameOverlay />
+            {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
+            {showAdmin && <AdminDashboard onClose={() => setShowAdmin(false)} />}
+
             {/* Top HUD */}
             <div className="absolute top-4 left-4 right-4 z-[1000] flex justify-between items-start pointer-events-none">
                 <div className="bg-black/40 backdrop-blur-md p-3 rounded-2xl border border-white/10 shadow-xl pointer-events-auto">
@@ -234,21 +113,30 @@ export default function GameMap() {
 
                 {/* TIMER & SCORE */}
                 <div className="flex flex-col items-end gap-2 pointer-events-auto">
-                    <div className="bg-black/80 backdrop-blur text-white px-4 py-2 rounded-xl border border-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.2)]">
-                        <span className={`font-orbitron font-bold text-xl ${!isActive ? 'text-red-500 animate-pulse' : 'text-yellow-400'}`}>
+                    <button
+                        onClick={() => {
+                            // Secret Admin Access: Long press or just click for now?
+                            // Let's make it easy: click timer
+                            const pwd = prompt("ADMIN ACCESS CODE:");
+                            if (pwd === '5555') setShowAdmin(true);
+                        }}
+                        className="bg-black/80 backdrop-blur text-white px-4 py-2 rounded-xl border border-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.2)] hover:bg-yellow-900/20 active:scale-95 transition-all"
+                    >
+                        <span className={`font-orbitron font-bold text-xl ${status !== 'ACTIVE' ? 'text-red-500 animate-pulse' : 'text-yellow-400'}`}>
                             {timeLeft}
                         </span>
-                    </div>
+
+                    </button>
                     {/* Mini Scoreboard */}
-                    <div className="bg-black/60 backdrop-blur p-2 rounded-lg text-xs font-bold border border-white/10">
+                    <div className="bg-black/60 backdrop-blur p-2 rounded-lg text-xs font-bold border border-white/10 flex gap-4">
                         <div className="text-blue-400">BLUE: {Math.round(scores.blue)} m²</div>
                         <div className="text-red-400">RED: {Math.round(scores.red)} m²</div>
                     </div>
                 </div>
             </div>
 
-            {/* GAME OVER MODAL */}
-            {!isActive && (
+            {/* GAME OVER CARD (When STATUS is ENDED) */}
+            {status === 'ENDED' && (
                 <div className="absolute inset-0 z-[5000] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
                     <div className="bg-slate-900 border-2 border-yellow-500 p-8 rounded-2xl max-w-sm w-full text-center shadow-[0_0_50px_rgba(234,179,8,0.3)] animate-in fade-in zoom-in duration-300">
                         <h2 className="text-4xl font-display font-bold text-white mb-2 uppercase">Time's Up</h2>
@@ -270,10 +158,13 @@ export default function GameMap() {
                         </div>
 
                         <button
-                            onClick={() => adminResetGame()}
+                            onClick={() => {
+                                const pwd = prompt("ADMIN CODE TO RESET:");
+                                if (pwd === '5555') setShowAdmin(true);
+                            }}
                             className="w-full bg-white text-black font-bold py-3 rounded-xl hover:bg-gray-200 transition-colors uppercase tracking-wider"
                         >
-                            Start New Round
+                            Game Master Menu
                         </button>
                     </div>
                 </div>
@@ -287,63 +178,15 @@ export default function GameMap() {
                 >
                     RESET ID
                 </button>
-                {/* Secret Admin Reset (Bottom Left, small) */}
+                {/* Help Button */}
                 <button
-                    onClick={() => { if (confirm("Reset Game Timer?")) adminResetGame() }}
-                    className="bg-gray-800/50 text-gray-500 px-2 py-1 rounded text-[8px] hover:text-white"
+                    onClick={() => setShowHelp(true)}
+                    className="w-8 h-8 flex items-center justify-center bg-game-primary/20 text-game-primary border border-game-primary/50 rounded-full hover:bg-game-primary hover:text-black font-bold text-lg backdrop-blur"
                 >
-                    RESTART
+                    ?
                 </button>
             </div>
 
-            {/* HUD / Controls */}
-            <div className="absolute top-4 left-4 right-4 z-[1001] flex justify-between items-start pointer-events-none">
-
-                {/* Game Mode Toggle */}
-                <div className="pointer-events-auto bg-game-surface/90 backdrop-blur rounded-xl border border-game-primary/30 p-1 flex gap-1 shadow-xl">
-                    <button
-                        onClick={() => setGameMode('solo')}
-                        className={`px-4 py-2 rounded-lg font-orbitron text-xs transition-colors ${gameMode === 'solo' ? 'bg-game-primary text-white' : 'text-game-primary/60 hover:text-game-primary'}`}
-                    >
-                        SOLO
-                    </button>
-                    <button
-                        onClick={() => setGameMode('shared')}
-                        className={`px-4 py-2 rounded-lg font-orbitron text-xs transition-colors ${gameMode === 'shared' ? 'bg-game-accent text-white' : 'text-game-accent/60 hover:text-game-accent'}`}
-                    >
-                        SHARED
-                    </button>
-                </div>
-
-                {/* Debug Toggle & Simulation */}
-                <div className="pointer-events-auto bg-game-surface/80 backdrop-blur p-2 rounded-lg border border-game-primary/30 flex flex-col gap-2">
-                    <label className="flex items-center gap-2 cursor-pointer text-xs font-orbitron text-game-primary">
-                        <input
-                            type="checkbox"
-                            checked={debugMode}
-                            onChange={(e) => setDebugMode(e.target.checked)}
-                            className="accent-game-primary"
-                        />
-                        DEBUG MODE
-                    </label>
-
-                    {debugMode && (
-                        <button
-                            onClick={() => runBattleSimulation()}
-                            className="text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/50 rounded px-2 py-1 hover:bg-blue-500/40 font-bold"
-                        >
-                            RUN SIMULATION
-                        </button>
-                    )}
-
-                    <button
-                        onClick={logout}
-                        className="w-full text-[10px] bg-red-900/50 text-red-200 border border-red-500/30 rounded px-2 py-1 hover:bg-red-900"
-                    >
-                        RESET ID
-                    </button>
-                </div>
-            </div>
 
             {/* Stats HUD (Bottom) */}
             <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-[1001] pointer-events-none">
@@ -360,29 +203,27 @@ export default function GameMap() {
                             {rivals.filter(r => r.team === user?.team).length}
                         </span>
                     </div>
-                    {/* Only show claimed area if needed, or maybe just replace one of them? 
-                        Let's keep Area/Zones for now but maybe make them smaller or scrollable?
-                        Actually, let's just REPLACE Area/Zones with Team/Allies for this Debug Phase 
-                        so the user sees the connection immediately. */}
                 </div>
             </div>
 
-
-
-            {error && !debugMode && (
-                <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-[1000] bg-red-500 text-white px-4 py-2 rounded-full shadow-lg">
-                    {error}
-                </div>
-            )}
-
-            {!activeLocation && !error && !debugMode && (
-                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[1000] bg-game-surface text-game-primary px-6 py-4 rounded-xl shadow-2xl border border-game-primary/20 backdrop-blur-md">
-                    <div className="flex flex-col items-center gap-2">
-                        <div className="w-6 h-6 border-2 border-game-primary border-t-transparent rounded-full animate-spin" />
-                        <span className="font-orbitron text-sm">Acquiring GPS Signal...</span>
+            {
+                error && (
+                    <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-[1000] bg-red-500 text-white px-4 py-2 rounded-full shadow-lg">
+                        {error}
                     </div>
-                </div>
-            )}
+                )
+            }
+
+            {
+                !activeLocation && !error && (
+                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[1000] bg-game-surface text-game-primary px-6 py-4 rounded-xl shadow-2xl border border-game-primary/20 backdrop-blur-md">
+                        <div className="flex flex-col items-center gap-2">
+                            <div className="w-6 h-6 border-2 border-game-primary border-t-transparent rounded-full animate-spin" />
+                            <span className="font-orbitron text-sm">Acquiring GPS Signal...</span>
+                        </div>
+                    </div>
+                )
+            }
 
             <MapContainer
                 center={center}
@@ -397,8 +238,6 @@ export default function GameMap() {
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
 
-                <DebugMapEvents onLocationSelect={handleDebugClick} />
-
                 {/* Claimed Territories */}
                 <TerritoryLayer territories={claimedTerritories} />
 
@@ -406,7 +245,7 @@ export default function GameMap() {
                 <Polyline
                     positions={path}
                     pathOptions={{
-                        color: gameMode === 'shared' ? '#10b981' : '#3b82f6',
+                        color: user?.team === 'red' ? '#ef4444' : '#3b82f6',
                         weight: 4,
                         opacity: 0.8,
                         lineCap: 'round',
@@ -415,15 +254,16 @@ export default function GameMap() {
                 />
 
                 {/* Rivals & Teammates */}
-                {rivals.map(rival => {
-                    const isAlly = rival.team === user?.team;
-                    const color = rival.team === 'red' ? '#ef4444' : (rival.team === 'blue' ? '#3b82f6' : '#9ca3af');
+                {
+                    rivals.map(rival => {
+                        const isAlly = rival.team === user?.team;
+                        const color = rival.team === 'red' ? '#ef4444' : (rival.team === 'blue' ? '#3b82f6' : '#9ca3af');
 
-                    // Create Custom Icon
-                    const borderColorClass = rival.team === 'red' ? 'border-red-500/30' : 'border-blue-500/30';
-                    const playerIcon = L.divIcon({
-                        className: 'bg-transparent border-none', // Override Leaflet defaults
-                        html: `
+                        // Create Custom Icon
+                        const borderColorClass = rival.team === 'red' ? 'border-red-500/30' : 'border-blue-500/30';
+                        const playerIcon = L.divIcon({
+                            className: 'bg-transparent border-none', // Override Leaflet defaults
+                            html: `
                             <div class="relative w-0 h-0">
                                 <span class="absolute -top-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap text-[10px] font-bold font-orbitron text-white bg-black/50 px-2 py-0.5 rounded backdrop-blur-sm border ${borderColorClass}">
                                     ${rival.name}
@@ -431,66 +271,69 @@ export default function GameMap() {
                                 <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 border-white shadow-[0_0_10px_${color}]" style="background-color: ${color}"></div>
                             </div>
                         `,
-                        iconSize: [20, 20], // Explicit size
-                        iconAnchor: [10, 10] // Center
-                    });
+                            iconSize: [20, 20], // Explicit size
+                            iconAnchor: [10, 10] // Center
+                        });
 
-                    return (
-                        <div key={rival.id}>
-                            {/* Trail for Teammates */}
-                            {isAlly && rivalTrails[rival.id] && (
-                                <Polyline
-                                    positions={rivalTrails[rival.id]}
-                                    pathOptions={{
-                                        color: color,
-                                        weight: 2,
-                                        opacity: 0.4,
-                                        dashArray: '5, 5'
-                                    }}
+                        return (
+                            <div key={rival.id}>
+                                {/* Trail for Teammates */}
+                                {isAlly && rivalTrails[rival.id] && (
+                                    <Polyline
+                                        positions={rivalTrails[rival.id]}
+                                        pathOptions={{
+                                            color: color,
+                                            weight: 2,
+                                            opacity: 0.4,
+                                            dashArray: '5, 5'
+                                        }}
+                                    />
+                                )}
+
+
+                                {/* Player Marker */}
+                                <MovingMarker
+                                    position={[rival.lat, rival.lng]}
+                                    duration={2000} // Rivals update slower, so slower slide
+                                    icon={playerIcon}
+                                    zIndexOffset={100}
                                 />
-                            )}
+                            </div>
+                        );
+                    })
+                }
 
-
-                            {/* Player Marker */}
+                {
+                    activeLocation && (
+                        <>
+                            {/* My Player Marker */}
                             <MovingMarker
-                                position={[rival.lat, rival.lng]}
-                                duration={2000} // Rivals update slower, so slower slide
-                                icon={playerIcon}
-                                zIndexOffset={100}
-                            />
-                        </div>
-                    );
-                })}
-
-                {activeLocation && (
-                    <>
-                        {/* My Player Marker */}
-                        <MovingMarker
-                            position={[activeLocation.lat, activeLocation.lng]}
-                            duration={1000} // I update faster
-                            zIndexOffset={1000} // Keep me on top
-                            icon={L.divIcon({
-                                className: 'my-player-icon',
-                                html: `
+                                position={[activeLocation.lat, activeLocation.lng]}
+                                duration={1000} // I update faster
+                                zIndexOffset={1000} // Keep me on top
+                                icon={L.divIcon({
+                                    className: 'my-player-icon',
+                                    html: `
                                 <div class="relative">
                                     <div class="w-5 h-5 rounded-full border-2 border-white bg-green-500 shadow-[0_0_15px_#22c55e] animate-pulse"></div>
                                 </div>
                             `,
-                                iconSize: [0, 0],
-                                iconAnchor: [10, 10]
-                            })}
-                        />
+                                    iconSize: [0, 0],
+                                    iconAnchor: [10, 10]
+                                })}
+                            />
 
-                        {/* Accuracy Circle */}
-                        <Circle
-                            center={[activeLocation.lat, activeLocation.lng]}
-                            radius={activeLocation.accuracy}
-                            pathOptions={{ color: '#10b981', fillColor: '#10b981', fillOpacity: 0.1, weight: 1, dashArray: '5,5' }}
-                        />
-                        <MapRecenter location={activeLocation} />
-                    </>
-                )}
-            </MapContainer>
+                            {/* Accuracy Circle */}
+                            <Circle
+                                center={[activeLocation.lat, activeLocation.lng]}
+                                radius={activeLocation.accuracy}
+                                pathOptions={{ color: '#10b981', fillColor: '#10b981', fillOpacity: 0.1, weight: 1, dashArray: '5,5' }}
+                            />
+                            <MapRecenter location={activeLocation} />
+                        </>
+                    )
+                }
+            </MapContainer >
 
             <style>{`
         .dark-map-tiles {

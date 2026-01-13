@@ -1,0 +1,16 @@
+{
+    "rules": {
+        ".read": true,
+        "locations": {
+            "$uid": {
+                ".write": "auth != null && auth.uid === $uid"
+            }
+        },
+        "territories": {
+            ".write": "auth != null"
+        },
+        "game": {
+            ".write": "auth != null"
+        }
+    }
+}
