@@ -1,0 +1,33 @@
+# RunClub Feature Roadmap 🚀
+
+## 1. Classes / RPG Elements 🛡️⚡
+Allow players to choose a "Role" / "Class" that grants passive bonuses.
+- **The Sprinter**: Claims land 2x faster (fewer points needed for loop), but trails disappear faster.
+- **The Tank**: Territories require 2 passes to be stolen (extra durability).
+- **The Spy**: Invisible on the map (no trail), but cannot claim land (only steal/sabotage).
+- **The Scout**: Larger vision radius (sees enemies from further away).
+
+## 2. Defensive Power-ups 💎
+Players earn points/currency from holding territory, which can be spent on active items.
+- **Shield (Cost: 500pts)**: Drop a shield on your territory. It becomes "Locked" for 10 minutes (Cannot be stolen by enemies).
+- **Mine / Trap (Cost: 300pts)**: Drop an invisible trap. If an enemy runs over it, their screen glitches, they lose 50% of their current path, or are temporarily frozen.
+- **Decoy (Cost: 100pts)**: Spawns a fake runner on the map to confuse enemies.
+
+## 3. "King of the Hill" Zones 👑
+Designate special static areas on the map (parks, landmarks) as High Value Zones.
+- **Global Hotspots**: Pre-defined zones by the admin.
+- **Scoring**: 
+    - Normal Land: 1 point / m²
+    - Hotspot Land: 10 points / m²
+- **Objective**: Forces teams to converge and fight over specific areas rather than spreading out indefinitely.
+
+## 4. Anti-Cheat & Security 👮‍♂️
+Prevent GPS spoofing and driving.
+- **Speed Limit**: If speed > 30km/h (approx 8.3m/s), pause recording. Warning: "You are moving too fast! No driving allowed."
+- **Teleport Check**: If distance between two updates is impossibly large for the time delta, ignore the point.
+- **Device Attestation**: Use App Check to ensure request comes from the real app (prevent script bots).
+
+## 5. Progression System 📈
+- **Level Up**: XP based on area claimed.
+- **Badges**: "Marathoner" (Run 42km total), "Conqueror" (Steal 100 lands), "Defender" (Hold a spot for 24h).
+- **Leaderboards**: Weekly/Monthly resets to keep it fresh.
