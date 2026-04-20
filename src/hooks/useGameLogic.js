@@ -5,7 +5,7 @@ import { db } from '../firebase';
 import { ref, push, onValue, update, remove } from 'firebase/database';
 import { useUser } from '../context/UserContext';
 
-export function useGameLogic(currentLocation, gameStatus = 'ACTIVE') {
+export function useGameLogic(currentLocation, gameStatus = 'ACTIVE', gameMode = 'solo') {
     const { user } = useUser();
     const [path, setPath] = useState([]);
     const [claimedTerritories, setClaimedTerritories] = useState([]);
@@ -61,22 +61,6 @@ export function useGameLogic(currentLocation, gameStatus = 'ACTIVE') {
                 const poly = createPolygonFromPath(path, intersection.intersectIndex, intersection.intersectPoint);
                 if (poly) {
                     handleTerritoryClaim(poly);
-                    // Reset path logic
-                    setPath([newPoint]);
-                    // Create Territory Object
-                    const newTerritory = {
-                        ...poly,
-                        ownerType: gameMode,
-                        ownerId: user.id,
-                        ownerName: user.name,
-                        team: user.team || 'neutral', // Use user's team
-                        color: user.team === 'red' ? '#ef4444' : (user.team === 'blue' ? '#3b82f6' : '#10b981'),
-                        timestamp: Date.now()
-                    };
-
-                    // PUSH to Firebase (Global State)
-                    const territoriesRef = ref(db, 'territories');
-                    push(territoriesRef, newTerritory).catch(err => console.error("Claim Failed:", err));
 
                     // Avoid synchronous setState warning by wrapping in setTimeout
                     setTimeout(() => {
@@ -93,7 +77,7 @@ export function useGameLogic(currentLocation, gameStatus = 'ACTIVE') {
         }, 0);
         lastPointRef.current = newPoint;
 
-    }, [currentLocation, isRecording, gameStatus, user]);
+    }, [currentLocation, isRecording, gameStatus, user, gameMode, path]);
 
 
     const handleTerritoryClaim = (poly) => {
@@ -146,6 +130,7 @@ export function useGameLogic(currentLocation, gameStatus = 'ACTIVE') {
         // --- CREATE NEW ---
         const newTerritory = {
             ...poly,
+            ownerType: gameMode,
             ownerId: user.id,
             ownerName: user.name || 'Anonymous',
             team: user.team || 'blue',
@@ -155,6 +140,7 @@ export function useGameLogic(currentLocation, gameStatus = 'ACTIVE') {
 
         const territoriesRef = ref(db, 'territories');
         const newRef = push(territoriesRef, newTerritory);
+        newRef.catch(err => console.error("Claim Failed:", err));
         update(newRef, { id: newRef.key });
 
         logEvent('CAPTURE', newRef.key, newTerritory.area);
@@ -171,8 +157,7 @@ export function useGameLogic(currentLocation, gameStatus = 'ACTIVE') {
             amount: Math.round(amount), // Area size or "1" for destroy
             timestamp: Date.now()
         });
-    }
-    }, [currentLocation, isRecording, gameMode, user, path]);
+    };
 
     return {
         path,

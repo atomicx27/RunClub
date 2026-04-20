@@ -50,7 +50,7 @@ export default function GameMap() {
     const { timeLeft, status, gameState } = useGameTimer();
 
     // Pass status to GameLogic to stop recording if paused/lobby
-    const { path, claimedTerritories, isRecording } = useGameLogic(activeLocation, status);
+    const { path, claimedTerritories, isRecording } = useGameLogic(activeLocation, status, gameMode);
     const { rivals } = useMultiplayer(user, activeLocation);
 
     // Trail Logic: Accumulate rival paths
@@ -84,8 +84,6 @@ export default function GameMap() {
             return next;
         });
     }, [rivals]);
-    const { path, claimedTerritories, isRecording } = useGameLogic(activeLocation, gameMode);
-    const { rivals } = useMultiplayer(user, activeLocation); // Sync location and get rivals
 
     // Default center (e.g. New York) if no location yet
     const defaultCenter = [40.7128, -74.0060];
