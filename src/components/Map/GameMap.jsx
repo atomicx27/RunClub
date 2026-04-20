@@ -1,7 +1,7 @@
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline, useMapEvents, Circle } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useLocation } from '../../hooks/useLocation';
 import { useGameLogic } from '../../hooks/useGameLogic';
 import { useUser } from '../../context/UserContext';
@@ -47,7 +47,7 @@ export default function GameMap() {
 
     // Real location only
     const activeLocation = realLocation;
-    const { timeLeft, status, gameState } = useGameTimer();
+    const { timeLeft, status } = useGameTimer();
 
     // Pass status to GameLogic to stop recording if paused/lobby
     const { path, claimedTerritories, isRecording } = useGameLogic(activeLocation, status);
@@ -57,11 +57,14 @@ export default function GameMap() {
     const [rivalTrails, setRivalTrails] = useState({});
 
     // Calculate Scores (Live)
-    const scores = claimedTerritories.reduce((acc, t) => {
+    const scores = useMemo(() => claimedTerritories.reduce((acc, t) => {
         if (t.team === 'blue') acc.blue += (t.area || 0);
         if (t.team === 'red') acc.red += (t.area || 0);
         return acc;
-    }, { blue: 0, red: 0 });
+    }, { blue: 0, red: 0 }), [claimedTerritories]);
+
+    // Memoized Allies Count
+    const alliesCount = useMemo(() => rivals.filter(r => r.team === user?.team).length, [rivals, user?.team]);
 
     useEffect(() => {
         setRivalTrails(prev => {
@@ -84,8 +87,6 @@ export default function GameMap() {
             return next;
         });
     }, [rivals]);
-    const { path, claimedTerritories, isRecording } = useGameLogic(activeLocation, gameMode);
-    const { rivals } = useMultiplayer(user, activeLocation); // Sync location and get rivals
 
     // Default center (e.g. New York) if no location yet
     const defaultCenter = [40.7128, -74.0060];
@@ -109,7 +110,7 @@ export default function GameMap() {
                         </div>
                         <div className="h-[1px] bg-white/20 w-full my-1" />
                         <div className="flex justify-between text-[10px] text-gray-400 font-mono">
-                            <span>ALLIES: {rivals.filter(r => r.team === user?.team).length}</span>
+                            <span>ALLIES: {alliesCount}</span>
                         </div>
                     </div>
                 </div>
@@ -203,7 +204,7 @@ export default function GameMap() {
                     <div className="flex flex-col items-center">
                         <span className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Allies</span>
                         <span className="font-orbitron text-xl text-white">
-                            {rivals.filter(r => r.team === user?.team).length}
+                            {alliesCount}
                         </span>
                     </div>
                 </div>
