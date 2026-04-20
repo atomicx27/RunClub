@@ -1,7 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
-// We don't need auth SDK yet if we are using "Test Mode" (Open rules), 
-// but good to import if we want to use anonymous auth later.
+import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
     apiKey: "AIzaSyAvi-d7XqjlypEcTEXGkqkH8ccOx_6oSiU",
@@ -16,5 +15,6 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Export Realtime Database reference
+// Export Realtime Database and Auth references
 export const db = getDatabase(app);
+export const auth = getAuth(app);

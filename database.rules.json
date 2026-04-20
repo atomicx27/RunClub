@@ -1,6 +1,6 @@
 {
     "rules": {
-        ".read": true,
+        ".read": "auth != null",
         "locations": {
             "$uid": {
                 ".write": "auth != null && auth.uid === $uid"
